@@ -1,10 +1,10 @@
-import os
 import numpy as np
 import matplotlib.pyplot as plt
 import time
 
 from utils import *
 from ChambollePock import *
+#from ChambollePock_jit import ChambollePock_denoise_jit
 from projectedGradient import *
 
 def discrepancy_ruleTV(f, noise_std, tau = 1.0, lam_init= 2.0, q = 0.9):
@@ -88,7 +88,7 @@ def R(t, f, u):
     elif (t == 0.0):
         u_t = np.full(f.shape, np.average(f))
     else:
-        u_t =  ChambollePock_denoise(f, (1-t)/t, tau = 0.5, sig = 0.25, acc = True, tol = 1e-4)
+        u_t = ChambollePock_denoise(f, (1-t)/t, tau = 0.4, sig = 0.25, acc = True, tol = 1e-4)
     return np.linalg.norm(u_t - u)
 
 def R_basis(t, f, basis_img):
@@ -112,14 +112,15 @@ def R_basis_vec(t, f, basis_img):
     print(np.inner(basis_img, u_t)**2)
     return np.sum(np.inner(basis_img, u_t)**2) 
 
-def R_basis_alt(t,f,basis_img):
+def R_basis_alt(t,f,avg_img,basis_img):
     if (t == 1.0):
         u_t = f
     elif (t == 0.0):
         u_t = np.full(f.shape, np.average(f))
     else:
         u_t =  ChambollePock_denoise(f, (1-t)/t, tau = 0.3, sig = 0.2, acc = True, tol = 1e-2)
-    return np.linalg.norm(u_t - np.sum([np.sum(np.multiply(basis_img[i],u_t))*basis_img[i] for i in range(basis_img.shape[0])]))
+        u_t = u_t - avg_img
+    return np.linalg.norm(u_t - np.sum([np.sum(np.multiply(basis_img[i],u_t))*basis_img[i] for i in range(basis_img.shape[0])]))**2
 
 
 def R_basis_vec_alt(t,f,basis_img):
@@ -134,7 +135,7 @@ def R_basis_vec_alt(t,f,basis_img):
     return np.linalg.norm(u_t - np.sum([np.inner(basis_img[i],u_t)*basis_img[i] for i in range(basis_img.shape[0])]))
 
 def gridSearch(f, u, N, plot=True):
-    t_list = np.linspace(0.85, 1.0, N)
+    t_list = np.linspace(0.80, 1.0, N)
     R_list = np.zeros(N)
     for i in range(0,N):
         R_list[i] = R(t_list[i],f,u)
@@ -155,8 +156,8 @@ def gridSearch(f, u, N, plot=True):
     #print("optimal lambda", (1 - t_opttrue)/t_opttrue)
     return t_opttrue, R_list[1:N-1]
 
-def gridSearch_basis(f, basis_img, N):
-    R_curr = lambda t: R_basis_alt(t,f,basis_img)
+def gridSearch_basis(f, basis_img, avg_img, N):
+    R_curr = lambda t: R_basis_alt(t,f,avg_img, basis_img)
     t_list = np.linspace(0.0, 1.0, N)
     R_list = np.zeros(N)
     for i in range(0,N):

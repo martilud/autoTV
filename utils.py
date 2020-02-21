@@ -12,39 +12,40 @@ import matplotlib.pyplot as plt
 import time
 from PIL import Image
 from scipy.stats import ortho_group
+from numba import jit
 
-def unit_vector(vector):
-    """ 
-    Normalises a vector  
-    """
-    return vector / np.linalg.norm(vector)
-
-def project_them(Q, X):
-    """ 
-    Projecting to a subspace given by orthonormal rows of a matrix Q 
-    """
-    P = np.dot(Q.T, Q)
-    return np.dot(P, X.T).T
-
-def safe_norm_div(x, y):
-    """ 
-    Calculates ||x-y||/||y|| safely 
-    """
-    if (np.linalg.norm(y) == 0.0):
-        return 0.0
-    return np.linalg.norm(x - y) / np.linalg.norm(y)
-
-def rank_r(m, d, r):
-    """
-    create a unit norm matrix of a certain rank
-    """
-    U, ss, V = np.linalg.svd(np.random.randn(m, d))
-    idx = np.sort(np.random.choice(min(m, d), r, replace = False))
-    S = np.zeros((m, d))
-    S[idx, idx] = ss[idx]
-    A = np.dot(U, np.dot(S, V))
-    A /= np.linalg.norm(A, 2)
-    return A
+#def unit_vector(vector):
+#    """ 
+#    Normalises a vector  
+#    """
+#    return vector / np.linalg.norm(vector)
+#
+#def project_them(Q, X):
+#    """ 
+#    Projecting to a subspace given by orthonormal rows of a matrix Q 
+#    """
+#    P = np.dot(Q.T, Q)
+#    return np.dot(P, X.T).T
+#
+#def safe_norm_div(x, y):
+#    """ 
+#    Calculates ||x-y||/||y|| safely 
+#    """
+#    if (np.linalg.norm(y) == 0.0):
+#        return 0.0
+#    return np.linalg.norm(x - y) / np.linalg.norm(y)
+#
+#def rank_r(m, d, r):
+#    """
+#    create a unit norm matrix of a certain rank
+#    """
+#    U, ss, V = np.linalg.svd(np.random.randn(m, d))
+#    idx = np.sort(np.random.choice(min(m, d), r, replace = False))
+#    S = np.zeros((m, d))
+#    S[idx, idx] = ss[idx]
+#    A = np.dot(U, np.dot(S, V))
+#    A /= np.linalg.norm(A, 2)
+#    return A
 
 def set_it_up(m, d, rank = False, h = 5, N_train = 50, N_test = 1, sigma = 0.05):
     """
@@ -216,41 +217,41 @@ def create_empirical_estimator_alt(image_array, newshape, h, N_train, N_test, si
     print("TIME TO CALCULATE u_hat:", time.time() - t)
     return u, f, u_hat
 
-def empirical_estimators(A, Y, Pi_n):
-    """
-    for a given A, Y compute the empirical estimator
+#def empirical_estimators(A, Y, Pi_n):
+#    """
+#    for a given A, Y compute the empirical estimator
+#
+#    """
+#    N = Y.shape[0]
+#    X = np.zeros((N, A.shape[1]))
+#    Eta = np.zeros((N, A.shape[0]))
+#    Ainv = np.linalg.pinv(A)
+#
+#    for i in range(N):
+#        Pi_n_Y = np.dot(Pi_n, Y[i, :])
+#        X[i, :] = np.dot(Ainv, Pi_n_Y)
+#        Eta[i, :] = Y[i, :] - Pi_n_Y
+#
+#    return X, Eta
+#
+#    """
+#    soft thresholding a vector with a threshold being lam
+#    TODO: replace with inbuilt func
+#    """
+#    s_tv = np.zeros(vec.shape)
+#    # import pdb; pdb.set_trace()
+#    for i in range(len(vec)):
+#        if vec[i] > lam / 2.0:
+#            s_tv[i] = vec[i] - lam / 2.0
+#        elif vec[i] < - lam / 2.0:
+#            s_tv[i] = vec[i] + lam / 2.0
+#    return s_tv
 
-    """
-    N = Y.shape[0]
-    X = np.zeros((N, A.shape[1]))
-    Eta = np.zeros((N, A.shape[0]))
-    Ainv = np.linalg.pinv(A)
-
-    for i in range(N):
-        Pi_n_Y = np.dot(Pi_n, Y[i, :])
-        X[i, :] = np.dot(Ainv, Pi_n_Y)
-        Eta[i, :] = Y[i, :] - Pi_n_Y
-
-    return X, Eta
-
-    """
-    soft thresholding a vector with a threshold being lam
-    TODO: replace with inbuilt func
-    """
-    s_tv = np.zeros(vec.shape)
-    # import pdb; pdb.set_trace()
-    for i in range(len(vec)):
-        if vec[i] > lam / 2.0:
-            s_tv[i] = vec[i] - lam / 2.0
-        elif vec[i] < - lam / 2.0:
-            s_tv[i] = vec[i] + lam / 2.0
-    return s_tv
-
-def sgn(v):
-    """
-    return sign of a vector
-    """
-    return np.sign(v)
+#def sgn(v):
+#    """
+#    return sign of a vector
+#    """
+#    return np.sign(v)
 
 def covariance(Z):
     """
@@ -324,21 +325,6 @@ def grad(f):
     out[1, :, :-1] = f[:, 1:] - f[:, :-1]
     return out
 
-def better_grad(f):
-    out = np.zeros((2,) + f.shape, f.dtype)
-
-    # x-direction
-    out[0,0, :] = f[1,:] - f[0, :]
-    out[0,-1, :] = f[-1,:] - f[-2, :]
-    out[0, 1:-1, :] = (f[2:, :] - f[:-2, :])/2
-
-    # y-direction
-    out[0,:, 0] = f[:, 1] - f[:, 0]
-    out[0,:, -1] = f[:,-1] - f[:, -2]
-
-    out[1, :, 1:-1] = (f[:, 2:] - f[:, :-2])/2
-    return out
-
 def div(f):
     """
     Calculates divergence of image f of size 2,n,m
@@ -360,6 +346,7 @@ def div(f):
 
     # Return sum along x-axis
     return np.sum(out, axis=0)
+
 def norm1(f, axis=0, keepdims=False):
     """
     returns 1-norm of image f of size n,m
@@ -367,20 +354,20 @@ def norm1(f, axis=0, keepdims=False):
     """
     return np.sqrt(np.sum(f**2, axis=axis, keepdims=keepdims))
 
-def better_norm1(f):
-    return np.sqrt(f[0,:,:]**2 + f[1,:,:]**2)
-
-def TV(u):
-    return np.sum(better_norm1(grad(u)))
-
-def anisotropic_TV(u):
-    return np.sum(np.abs(u[1:,:] - u[:-1,:])) + np.sum(np.abs(u[:,1:] - u[:,:-1]))
-
-def cost(u,f,lam):
-    return 0.5* np.linalg.norm(u-f) + lam*TV(u) 
-
-def cost_matrix(A,u,f,lam):
-    return 0.5* np.linalg.norm(A.dot(u.reshape(f.shape[0]*f.shape[1])).reshape(f.shape)-f) + lam*TV(u) 
+#def better_norm1(f):
+#    return np.sqrt(f[0,:,:]**2 + f[1,:,:]**2)
+#
+#def TV(u):
+#    return np.sum(better_norm1(grad(u)))
+#
+#def anisotropic_TV(u):
+#    return np.sum(np.abs(u[1:,:] - u[:-1,:])) + np.sum(np.abs(u[:,1:] - u[:,:-1]))
+#
+#def cost(u,f,lam):
+#    return 0.5* np.linalg.norm(u-f) + lam*TV(u) 
+#
+#def cost_matrix(A,u,f,lam):
+#    return 0.5* np.linalg.norm(A.dot(u.reshape(f.shape[0]*f.shape[1])).reshape(f.shape)-f) + lam*TV(u) 
 
 def psnr(noisy,true):
     """
@@ -392,7 +379,7 @@ def psnr(noisy,true):
     #return 20*np.log10(mse) - 10*np.log10(np.max(np.max(noisy),np.max(true)))
 
 def dualitygap_denoise(lam,u,divp,f):
-    return 0.5 * np.linalg.norm(u - f)**2 + lam * np.sum(better_norm1(grad(u))) + 0.5 * np.linalg.norm(f + divp)**2 - 0.5 * np.linalg.norm(f)**2
+    return 0.5 * np.linalg.norm(u - f)**2 + lam * np.sum(norm1(grad(u))) + 0.5 * np.linalg.norm(f + divp)**2 - 0.5 * np.linalg.norm(f)**2
     #return 0.5 * np.linalg.norm(u - f)**2 + lam * np.sum(better_norm1(grad(u))) - 0.5 * np.linalg.norm(f - divp)**2 + 0.5 * np.linalg.norm(f)**2 + np.linalg.norm(divp)**2
 
 

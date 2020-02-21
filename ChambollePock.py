@@ -1,8 +1,6 @@
 from utils import *
 from projectedGradient import *
-import scipy
-from mpl_toolkits.mplot3d import Axes3D
-import matplotlib.pyplot as plt
+from numba import jit
 #def A(f,ker):
 #    return fftpack.idctn(ff*fker, shape=s, norm='ortho') #signal.fftconvolve(f,ker,mode='same')
 
@@ -37,7 +35,7 @@ def ChambollePock_denoise_conv(f, lam, tau = 0.50, sig = 0.30, theta = 1.0, acc 
     while (i < maxiter and res > tol): # and min > tol)):
         u_prev = np.copy(u)
         p_hat = p + sig*grad(u_hat)
-        p = lam * p_hat / np.maximum(lam, better_norm1(p_hat))
+        p = lam * p_hat / np.maximum(lam, norm1(p_hat))
         divp = div(p)
         u = 1/(1 + tau) * (u + tau * divp + tau *f) 
         if (acc):
@@ -53,7 +51,7 @@ def ChambollePock_denoise_conv(f, lam, tau = 0.50, sig = 0.30, theta = 1.0, acc 
         i+=1
         #print(i)
     return u, dualitygap_list, psnr_list, i 
- 
+
 def ChambollePock_denoise(f, lam, tau = 0.50, sig = 0.30, theta = 1.0, acc = False, tol = 1.0e-1, u0 = None):
 
     if u0 is  None:
@@ -74,15 +72,13 @@ def ChambollePock_denoise(f, lam, tau = 0.50, sig = 0.30, theta = 1.0, acc = Fal
     dualitygap_init = dualitygap_denoise(lam,u,divp,f)
     if acc:
         gam = 0.5
-    i = 0
     res= tol + 1.0
-    #plot_iterations = [10, 100, 500]
-    while (i < maxiter and res > tol): # and min > tol)):
+    for i in range(maxiter): # and min > tol)):
         u_prev = np.copy(u)
         p_hat = p + sig*grad(u_hat)
         p = lam * p_hat / np.maximum(lam,norm1(p_hat))
         divp = div(p)
-        u = 1/(1 + tau) * (u + tau * divp + tau *f) 
+        u = 1.0/(1.0 + tau) * (u + tau * divp + tau *f) 
         if (acc):
            theta = 1.0/np.sqrt(1.0 + 2.0*gam*tau) 
            tau = theta*tau
@@ -90,11 +86,10 @@ def ChambollePock_denoise(f, lam, tau = 0.50, sig = 0.30, theta = 1.0, acc = Fal
         u_hat = u + theta*(u - u_prev)
         if (i%10 == 0):
             res = dualitygap_denoise(lam,u,divp,f)/dualitygap_init
-        #if (i+1 in plot_iterations):
-        #    plt.imsave("Lenna" + str(i) + ".png", u, cmap = "gray")
-        i+=1
-        #print(i)
+            if (res < tol):
+                break
     return u   
+
 if __name__ == "__main__":
     Originalf = imageio.imread('images/Lenna.jpg', pilmode = 'F')
     Originalf = Originalf/255.0

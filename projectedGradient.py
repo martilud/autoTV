@@ -59,6 +59,31 @@ def projected_gradient_alt_conv(f, lam,  tau = 0.25, tol=1.0e-10, u0 = None):
         i += 1
     return u, dualitygap_list, psnr_list, i
 
+
+#def projected_gradient_gpu(f,lam, tau = 0.2, tol = 1.0e-10, u0 = None):
+#    if u0 is  None:
+#        #u = np.copy(f)
+#        u = cp.zeros(f.shape, f.dtype)
+#    else:
+#        u = cp.copy(u0)
+#    p = cp.zeros((2,) + f.shape, f.dtype)
+#    p_hat = cp.zeros((2,) + f.shape, f.dtype)
+#    divp = cp.zeros(f.shape, f.dtype)
+#    maxiter = 500
+#    #dualitygap_init = dualitygap_denoise(lam,u,divp,f)
+#    i = 0
+#    res = tol + 1.0
+#    while (i < maxiter and res > tol):
+#        u = cp.add(f , divp)
+#        grad_div_p_i = grad(u)
+#        p_hat = p + tau*grad(u)
+#        p = cp.divide(cp.multiply(lam , p_hat) , cp.maximum(lam, better_norm1(p_hat)))
+#        divp = div(p)
+#        #if (i%5 == 0):
+#        #    res = dualitygap_denoise(lam,u,divp,f)/dualitygap_init
+#        i += 1
+#    return u
+
 def projected_gradient_alt(f, lam,  tau = 0.25, tol=1.0e-10, u0 = None):
     if u0 is  None:
         #u = np.copy(f)
@@ -81,7 +106,7 @@ def projected_gradient_alt(f, lam,  tau = 0.25, tol=1.0e-10, u0 = None):
         if (i%5 == 0):
             res = dualitygap_denoise(lam,u,divp,f)/dualitygap_init
         i += 1
-    return u, dualitygap_list, psnr_list, i
+    return u
 
 
 def plotR(noisy,true):
