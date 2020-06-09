@@ -46,6 +46,23 @@ from numba import jit
 #    A = np.dot(U, np.dot(S, V))
 #    A /= np.linalg.norm(A, 2)
 #    return A
+def center(f,n,m):
+    """
+    Returns centered image of size nxn that has
+    been padded to size n+m-1xn+m-1
+    """
+    return f[m//2:m//2+n, m//2:m//2+n]
+
+def edge_pad_and_shift(f, m):
+    """
+    pads image to size n+m-1xn+m-1 with edge padding
+    """
+    f_pad = np.pad(f,((m-1)//2,(m-1)//2), 'edge')
+    f_pad = np.roll(f_pad, -(m-1)//2, axis = 0)
+    f_pad = np.roll(f_pad, -(m-1)//2, axis = 1)
+    return f_pad
+
+
 
 def set_it_up(m, d, rank = False, h = 5, N_train = 50, N_test = 1, sigma = 0.05):
     """

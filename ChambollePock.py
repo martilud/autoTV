@@ -1,8 +1,147 @@
 from utils import *
 from projectedGradient import *
 from numba import jit
-#def A(f,ker):
-#    return fftpack.idctn(ff*fker, shape=s, norm='ortho') #signal.fftconvolve(f,ker,mode='same')
+from numpy.fft import rfftn, irfftn
+
+def center(f,n,m):
+    """
+    Returns centered image of size nxn that has
+    been padded to size n+m-1xn+m-1
+    """
+    return f[m//2:m//2+n, m//2:m//2+n]
+
+def A(ff,fker,n,m):
+    shape = (n+m-1,n+m-1)
+    return center(fftpack.irfftn(ff*fker,shape))
+
+
+def A_star(ff,fker_star,n,m):
+    shape = (n+m-1,n+m-1)
+    return center(fftpack.irfftn(ff*fker_star,shape))
+
+def A_square(ff,fker_square):
+    return 0
+
+def ChambollePock_convolution(f, lam, fker, fker_star, shape, tau = 0.30, sig = 0.20, theta = 1.0, acc = False, tol = 1.0e-1, u0 = None):
+    if u0 is  None:
+        u = np.zeros(f.shape, f.dtype)
+        u_prev = np.zeros(f.shape, f.dtype) 
+        u_hat = np.zeros(f.shape, f.dtype) 
+    else:
+        u = np.copy(u0)
+        u_prev = np.copy(u0)
+        u_hat = np.copy(u0)
+    p = np.zeros((2,) + f.shape, f.dtype)
+    p_hat = np.zeros((2,) + f.shape, f.dtype)
+    divp = div(p)
+    
+    n = f.shape[0]
+    m = shape[0] - n + 1
+
+    fk_star_times_ff = np.multiply(fker_star, rfftn(f,shape)) # This should be fixed so the edges are done better, see main function
+    one_plus_tau_fker_squared = np.ones(fker.shape) + tau * np.abs(fker)**2 # I think this line is funky, i think the scaling of the ones may be off
+    #one_plus_tau_fker_squared = rfftn(temp,shape) + tau * np.abs(fker)**2 
+
+    if acc:
+        gam = 0.5
+
+    maxiter = 100
+    for i in range(maxiter): # and min > tol)):
+        u_prev = np.copy(u)
+        p_hat = p + sig*grad(u_hat)
+        p = lam * p_hat / np.maximum(lam,norm1(p_hat))
+        divp = div(p)
+        
+        u = center(irfftn(np.divide(rfftn(np.pad(u + tau * divp,((m-1)//2,(m-1)//2)), shape) + tau * fk_star_times_ff, one_plus_tau_fker_squared)),n,m)
+        if (acc):
+           theta = 1.0/np.sqrt(1.0 + 2.0*gam*tau) 
+           tau = theta*tau
+           sig = sig/theta
+        u_hat = u + theta*(u - u_prev)
+    return u   
+
+def edge_pad_and_shift(f, m):
+    """
+    pads image to size n+m-1xn+m-1 with edge padding
+    """
+    f_pad = np.pad(f,((m-1)//2,(m-1)//2), 'edge')
+    f_pad = np.roll(f_pad, -(m-1)//2, axis = 0)
+    f_pad = np.roll(f_pad, -(m-1)//2, axis = 1)
+    return f_pad
+
+def ChambollePock_convolution_edge(f, lam, fker, fker_star, shape, tau = 0.3, sig = 0.25, theta = 1.0, acc = False, tol = 1.0e-1, u0 = None):
+    if u0 is  None:
+        u = np.zeros(f.shape, f.dtype)
+        u_prev = np.zeros(f.shape, f.dtype) 
+        u_hat = np.zeros(f.shape, f.dtype) 
+    else:
+        u = np.copy(u0)
+        u_prev = np.copy(u0)
+        u_hat = np.copy(u0)
+    p = np.zeros((2,) + f.shape, f.dtype)
+    p_hat = np.zeros((2,) + f.shape, f.dtype)
+    divp = div(p)
+    
+    n = f.shape[0]
+    m = shape[0] - n + 1
+
+    fk_star_times_ff = np.multiply(fker_star, rfftn(edge_pad_and_shift(f,m),shape)) # This should be fixed so the edges are done better, see main function
+    one_plus_tau_fker_squared = np.ones(fker.shape) + tau * np.abs(fker)**2 # I think this line is funky, i think the scaling of the ones may be off
+    #one_plus_tau_fker_squared = rfftn(temp,shape) + tau * np.abs(fker)**2 
+
+    if acc:
+        gam = 0.5
+
+    maxiter = 100
+    for i in range(maxiter): # and min > tol)):
+        u_prev = np.copy(u)
+        p_hat = p + sig*grad(u_hat)
+        p = lam * p_hat / np.maximum(lam,norm1(p_hat))
+        divp = div(p)
+        u = center(irfftn(np.divide(rfftn(np.pad(u,((m-1)//2,(m-1)//2), 'edge') + np.pad(tau * divp,((m-1)//2,(m-1)//2), 'edge'), shape) + tau * fk_star_times_ff, one_plus_tau_fker_squared)),n,m)
+        if (acc):
+           theta = 1.0/np.sqrt(1.0 + 2.0*gam*tau) 
+           tau = theta*tau
+           sig = sig/theta
+        u_hat = u + theta*(u - u_prev)
+    return u   
+
+def ChambollePock_convolution_alt(f, lam, fker, fker_star, shape, tau = 0.30, sig = 0.20, theta = 1.0, acc = False, tol = 1.0e-1, u0 = None):
+    if u0 is  None:
+        u = np.zeros(shape, f.dtype)
+        u_prev = np.zeros(shape, f.dtype) 
+        u_hat = np.zeros(shape, f.dtype) 
+    else:
+        u = np.copy(u0)
+        u_prev = np.copy(u0)
+        u_hat = np.copy(u0)
+    p = np.zeros((2,) + shape, f.dtype)
+    p_hat = np.zeros((2,) + shape, f.dtype)
+    divp = div(p)
+    
+    n = f.shape[0]
+    m = shape[0] - n + 1
+    
+    fk_star_times_ff = np.multiply(fker_star, rfftn(f,shape)) # This should be fixed so the edges are done better, see main function
+    one_plus_tau_fker_squared = np.ones(fker.shape) + tau * np.abs(fker)**2 # I think this line is funky, i think the scaling of the ones may be off
+    #one_plus_tau_fker_squared = rfftn(temp,shape) + tau * np.abs(fker)**2 
+    if acc:
+        gam = 0.5
+
+    maxiter = 100
+    for i in range(maxiter): # and min > tol)):
+        u_prev = np.copy(u)
+        p_hat = p + sig*grad(u_hat)
+        p = lam * p_hat / np.maximum(lam,norm1(p_hat))
+        divp = div(p)
+        
+        u = irfftn(np.divide(rfftn(u + tau * divp, shape) + tau * fk_star_times_ff, one_plus_tau_fker_squared))
+        if (acc):
+           theta = 1.0/np.sqrt(1.0 + 2.0*gam*tau) 
+           tau = theta*tau
+           sig = sig/theta
+        u_hat = u + theta*(u - u_prev)
+    return u   
 
 def ChambollePock_denoise_conv(f, lam, tau = 0.50, sig = 0.30, theta = 1.0, acc = False, tol = 1.0e-1, u0 = None):
     if u0 is  None:
@@ -91,48 +230,7 @@ def ChambollePock_denoise(f, lam, tau = 0.50, sig = 0.30, theta = 1.0, acc = Fal
     return u   
 
 if __name__ == "__main__":
-    Originalf = imageio.imread('images/Lenna.jpg', pilmode = 'F')
-    Originalf = Originalf/255.0
-    f = np.copy(Originalf)
-    shape = f.shape
-    nx = f.shape[0]
-    ny = f.shape[1]
-    sigma = 0.1
-    f = add_gaussian_noise(f,sigma)
+    ker = np.outer(signal.gaussian(2*nx,sigma), signal.gaussian(2*ny, sigma))
+    ker = ker/np.linalg.normsum(ker)
 
-    lam = 0.1
-    #result,costlist = ChambollePock_matrix(f, lam, A, tau = 0.10, sig = 0.10, theta = 1.0)
-    result1,costlist1 = ChambollePock_denoise(f,lam,tau=0.25, sig = 0.25,theta = 1.0, tol = 1.0e-2)
-    #result1, costlist1 = projected_gradient(f,lam,tau = 0.25, tol = 1.0e-10)
-    #plt.semilogy(costlist, '-')
-    plt.loglog(costlist1)
-    plt.grid()
-    plt.show()
-    plt.imshow(result1, cmap='gray')
-    plt.show()
-    ##ker = np.outer(signal.gaussian(2*nx,sigma), signal.gaussian(2*ny, sigma))
-    ##ker = ker[nx:, ny:]
-    ##ker = ker/np.sum(ker)
-    ##print(ker)
-    ##plt.imshow(ker,cmap='gray')
-    ##plt.show()
-    ##s = [n + k - 1 for n,k in zip(f.shape, ker.shape)]
-    ##s = np.array(f.shape) #+ np.array(ker.shape) - 1
-    ##
-    ##fker = fftpack.dctn(ker,shape=s, norm='ortho')
-    ##fker2 = np.abs(fker)**2
-    ##
-    ##fker_conj = fftpack.dctn(ker[::-1],shape=s, norm='ortho')
-    ##
-    ##ff = fftpack.dctn(f, shape=s, norm='ortho')
-    ##f = A(f,ker)
-    ##print(f)
-    ##plt.imshow(f,cmap='gray')
-    ##plt.show()
-    #
-    fig = plt.figure()
-    ax = fig.subplots(1,2)
-    ax[0].imshow(f, cmap = 'gray')
-    ax[1].imshow(result1, cmap = 'gray')
-    plt.show()
 
