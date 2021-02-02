@@ -99,8 +99,8 @@ def psnr(noisy,true):
     #return 20*np.log10(mse) - 10*np.log10(np.max(np.max(noisy),np.max(true)))
 
 def dualitygap_denoise(lam,u,divp,f):
-    return 0.5 * np.linalg.norm(u - f)**2 + lam * np.sum(norm1(grad(u))) + 0.5 * np.linalg.norm(f + divp)**2 - 0.5 * np.linalg.norm(f)**2
-    #return 0.5 * np.linalg.norm(u - f)**2 + lam * np.sum(better_norm1(grad(u))) - 0.5 * np.linalg.norm(f - divp)**2 + 0.5 * np.linalg.norm(f)**2 + np.linalg.norm(divp)**2
+    #return 0.5 * lam * np.linalg.norm(u - f)**2 +  np.sum(norm1(grad(u))) + 0.5 * np.linalg.norm(f + (1/lam)*divp)**2 - 0.5 * np.linalg.norm(f)**2
+    return 0.5 * lam * np.linalg.norm(u - f,'fro')**2 + np.sum(norm1(grad(u))) + (1/(2*lam))*np.linalg.norm(divp,'fro')**2 + np.sum(np.multiply(f,divp))
 
 def createDownsampled(u,n,blur = False, sigma_blur = 0.5):
     """

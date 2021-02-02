@@ -1,6 +1,6 @@
 from utils import *
 from numpy.fft import rfftn, irfftn
-from speed import chambollepock_denoise
+#from solve import chambollepock_denoise
 
 def ChambollePock_convolution(f, lam, fker, fker_star, shape, tau = 0.30, sig = 0.20, theta = 1.0, acc = False, tol = 1.0e-1, u0 = None):
     if u0 is  None:
@@ -201,7 +201,172 @@ def ChambollePock_denoise(f, lam, tau = 0.50, sig = 0.30, theta = 1.0, acc = Fal
                 break
     return u   
 
-def f2py_cp_denoise(f, lam, u0 = None, tau = 0.30, sig = 0.30, theta = 1.0, acc = False, tol = 1.0e-10):
+def py_cp_denoise(f, t, u0 = None, tau = 0.25, sig = 0.25, theta = 1.0, tol = 1.0e-10):
+
+    if u0 is  None:
+        #u = np.copy(f)
+        #u_prev = np.copy(f)
+        #u_hat = np.copy(f)
+        u = np.zeros(f.shape, f.dtype)
+        u_prev = np.zeros(f.shape, f.dtype) 
+        u_hat = np.zeros(f.shape, f.dtype) 
+    else:
+        u = np.copy(u0)
+        u_prev = np.copy(u0)
+        u_hat = np.copy(u0)
+    n = f.shape[0] 
+    p = np.zeros((2,) + f.shape, f.dtype)
+    p_hat = np.zeros((2,) + f.shape, f.dtype)
+    divp = div(p)
+    maxiter = 1000
+    convlist = []
+    for i in range(maxiter): # and min > tol)):
+        u_prev = np.copy(u)
+        p_hat = p + sig*grad(u_hat)
+        p = p_hat / np.maximum(1,norm1(p_hat))
+        divp = div(p)
+        u = 1.0/(1.0 + t*tau) * (u + tau * divp + tau * t * f) 
+        u_hat = u + theta*(u - u_prev)
+        convlist.append(np.linalg.norm(-divp + t*(u-f)))
+        if (convlist[i]/convlist[0]<tol):
+            break
+    return u
+
+def py_cp_denoise_dp(f, t, u_true,noise_sig = 0.0, dp_tau = 1.0, u0 = None, tau = 0.25, sig = 0.25, theta = 1.0, tol = 1.0e-10):
+
+    if u0 is  None:
+        #u = np.copy(f)
+        #u_prev = np.copy(f)
+        #u_hat = np.copy(f)
+        u = np.zeros(f.shape, f.dtype)
+        u_prev = np.zeros(f.shape, f.dtype) 
+        u_hat = np.zeros(f.shape, f.dtype) 
+    else:
+        u = np.copy(u0)
+        u_prev = np.copy(u0)
+        u_hat = np.copy(u0)
+    n = f.shape[0] 
+    cc = dp_tau * n* n * noise_sig**2
+    p = np.zeros((2,) + f.shape, f.dtype)
+    p_hat = np.zeros((2,) + f.shape, f.dtype)
+    divp = div(p)
+    maxiter = 1000
+    maxiter_newton = 50
+    t_hat = t
+    list = []
+    for i in range(maxiter): # and min > tol)):
+        u_prev = np.copy(u)
+        p_hat = p + sig*grad(u_hat)
+        p =p_hat / np.maximum(1, norm1(p_hat)) 
+        divp = div(p)
+         
+        # Find t by Newton iteration on discrepancy principle
+        #if (np.linalg.norm(u - f, 'fro')**2 < cc):
+        #    t = 0.0
+        #else:
+        for j in range(maxiter_newton):
+            t_prev = t
+            temp = np.linalg.norm(u + tau* divp -f,'fro')**2
+            e = 1/(1 + t * tau)**2 * temp - cc
+            de = - 2*tau/(1 + t * tau)**3 * temp
+            t = t_prev - e/de
+            if (t < 0.0):
+                alpha = 1.0
+                for m in range(50):
+                    t = t_prev - alpha * e/de
+                    if 0.0 < t:
+                        break
+                    alpha*=0.5
+            if (np.abs(e) < 1e-12):
+                break
+
+        u = 1.0/(1.0 + t*tau) * (u + tau * divp + tau * t * f)
+        #u_hat = 2*u - u_prev
+        list.append(np.linalg.norm(-divp + t*(u-f),'fro')**2)
+        if list[i]/list[0] < 1e-12:
+            break
+    #plt.semilogy(list)
+    #plt.show()
+    return u,t
+
+
+def py_pg_denoise_dp(f, t, u_true, noise_sig = 0.0, dp_tau = 1.0, u0 = None, tau = 0.25, tol = 1.0e-10):
+
+    if u0 is  None:
+        #u = np.copy(f)
+        #u_prev = np.copy(f)
+        #u_hat = np.copy(f)
+        u = np.zeros(f.shape, f.dtype)
+        u_prev = np.zeros(f.shape, f.dtype) 
+        u_hat = np.zeros(f.shape, f.dtype) 
+    else:
+        u = np.copy(u0)
+        u_prev = np.copy(u0)
+        u_hat = np.copy(u0)
+    n = f.shape[0] 
+    cc = dp_tau * n* n * noise_sig**2
+    p = np.zeros((2,) + f.shape, f.dtype)
+    p_hat = np.zeros((2,) + f.shape, f.dtype)
+    divp = div(p)
+    maxiter = 1000
+    maxiter_newton = 10
+    conv_u = []
+    conv_t = []
+    u_check = []
+    duality_list=[]
+    iters = 0
+    for i in range(maxiter):
+        t_bigprev = np.copy(t)
+        u_prev = np.copy(u)
+        p_hat = p + tau*grad(u)
+        p = p_hat / np.maximum(1, norm1(p_hat)) 
+        divp = div(p)
+        #t_list = np.linspace(-100,100,1000)
+        #e_list = np.zeros(1000)
+        #for m in range(1000):
+        #        e_list[m] = (1/t_list[m]**2)*np.linalg.norm(divp,'fro')**2 - cc
+        #plt.plot(t_list,e_list)
+        #plt.show()
+        normdivp =  np.linalg.norm(divp,'fro')**2
+        for j in range(maxiter_newton):
+            t_prev = t
+            k = (1.0/(t*t))*normdivp - cc
+            dk = -(2.0/(t*t*t)) * normdivp
+            t = t_prev - k/dk
+            alpha = 1.0
+            if (t < 0.0):
+                alpha = 1.0
+                for m in range(20):
+                    t = t_prev - alpha * k/dk
+                    if t > 0.0:
+                        break
+                    alpha*=0.5
+            if (np.abs(k) < 1e-12):
+                break
+        u = f + (1/t)*divp 
+        #p_hat = p + tau*grad(u)
+        #p = p_hat / np.maximum(1, norm1(p_hat))
+        #divp = div(p)
+        #duality_list.append(dualitygap_denoise(t,u,divp,f))
+        duality_list.append(np.linalg.norm(-divp + t*(u-f),'fro')**2)
+        iters +=1
+        #conv_u.append(np.linalg.norm(u - u_prev,'fro')**2/np.linalg.norm(u_prev,'fro')**2)
+        #conv_t.append(np.abs(t - t_bigprev)**2/np.abs(t_bigprev)**2)
+        #u_check.append(np.linalg.norm(u - u_true,'fro')**2/np.linalg.norm(u_true,'fro')**2)
+        #if conv_u[i] < 1e-12:
+        #    break
+        if duality_list[i]/duality_list[0] < 1e-12:
+            break
+    #plt.semilogy(duality_list)
+    #plt.show()
+    #plt.semilogy(u_check)
+    #plt.show()
+    #plt.semilogy(conv_t)
+    #plt.show()
+    return u,t
+
+
+def f2py_cp_denoise(f, lam, u0 = None, tau = 0.25, sig = 0.25, theta = 1.0, acc = False, tol = 1.0e-10):
     n = f.shape[0]
     if u0 is None:
         res = np.zeros(f.shape, dtype = np.float32, order = 'F')
