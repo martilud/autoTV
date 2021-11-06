@@ -1,5 +1,6 @@
 import time
-from scipy import sparse, linalg, signal, misc, fftpack, ndimage
+from scipy import sparse, linalg, signal, misc, ndimage
+from scipy.fftpack import dct, idct
 from scipy.linalg import circulant, toeplitz
 from mpl_toolkits.mplot3d import Axes3D
 import imageio
@@ -10,6 +11,13 @@ import matplotlib.pyplot as plt
 import time
 from numpy.fft import fft2, ifft2, fftshift, rfftn, irfftn
 from PIL import Image
+
+def dct2(v, type = 3, s = [None,None], norm = None):
+    return dct(dct(v, n = s[1], type = type, norm = norm, axis = 0),
+            n = s[0], type = type, norm = norm, axis = 1)
+def idct2(v, type = 3, s = [None, None], norm = None):
+    return idct(idct(v, n = s[1], type = type, norm = norm, axis = 0),
+            n = s[0], type = type, norm = norm, axis = 1)
 
 def center(f,n,m):
     """
@@ -44,47 +52,83 @@ def add_gaussian_blurring(f, ker, sigma):
     out = signal.fftconvolve(f,ker, mode='same')
     return out
 
-def grad(f):
+def D_zero_boundary(u):
     """
-    Calculates gradient of image f of size n,m
+    Calculates gradient of image u of size n,m
     returns gradient of size 2,n,m
-
+    Gradient as given by chambolle
     """
-    out = np.zeros((2,) + f.shape, f.dtype)
+    out = np.zeros((2,) + u.shape, u.dtype)
 
     # x-direction
-    out[0, :-1, :] = f[1:, :] - f[:-1, :]
+    out[0, :-1, :] = u[1:, :] - u[:-1, :]
 
     # y-direction
-    out[1, :, :-1] = f[:, 1:] - f[:, :-1]
+    out[1, :, :-1] = u[:, 1:] - u[:, :-1]
     return out
 
-def div(f):
+def Dast_zero_boundary(f):
     """
     Calculates divergence of image f of size 2,n,m
     returns divergence of size n,m
     """
     out = np.zeros_like(f)
 
-    # Boundaries along y-axis
-    out[0, 0, :] = f[0, 0, :]
-    out[0, -1, :] = -f[0, -2, :]
-    # Inside along y-axis
-    out[0, 1:-1, :] = f[0, 1:-1, :] - f[0, :-2, :]
+    # Boundaries along x-axis
+    out[0, 0, :] = - f[0, 0, :]
+    out[0, -1, :] = f[0, -2, :]
+    # Inside along x-axis
+    out[0, 1:-1, :] = f[0, :-2, :] - f[0, 1:-1, :] 
 
     # Boundaries along y-axis
-    out[1, :, 0] = f[1, :, 0]
-    out[1, :, -1] = -f[1, :, -2]
+    out[1, :, 0] = -f[1, :, 0]
+    out[1, :, -1] = f[1, :, -2]
     # Inside along y-axis
-    out[1, :, 1:-1] = f[1, :, 1:-1] - f[1, :, :-2]
+    out[1, :, 1:-1] = f[1, :, :-2] - f[1, :, 1:-1]
 
-    # Return sum along x-axis
+    # Return sum
     return np.sum(out, axis=0)
 
-def norm1(f, axis=0, keepdims=False):
+def D_convolution(u):
     """
-    returns 1-norm of image f of size n,m
-    returns number
+    Calculates gradient of image u of size n,m
+    returns gradient of size 2,n,m
+    Gradient calculated so that it corresponds
+    to convolution with forward differences [0,-1,1] and [0,-1,1]^T.
+    
+    """
+    out = np.zeros((2,) + u.shape, u.dtype)
+
+    out[0, :-1, :] = u[1:, :] - u[:-1, :]
+    out[0, -1, :] = 0 #-u[-1,:]
+
+    out[1, :, :-1] = u[:, 1:] - u[:, :-1]
+    out[1, :, -1] = 0 #-u[:,-1]
+
+    return out
+
+def Dast_convolution(p):
+    """
+    Calculates adjoint of gradient (negative divergence)
+    of an "adjoint" image p of size 2,n,m
+    returns adjoint of gradient of size n,m.
+    Adjoint of D.
+    """
+
+    out = np.zeros_like(p)
+
+    out[0, 1:, :] =  p[0, :-1, :] - p[0, 1:, :]
+    out[0, 0, :] = 0 #-p[0, 0, :]
+
+    out[1, :, 1:] =  p[1, :, :-1] - p[1, :, 1:]
+    out[1, :, 0] = 0 #-p[1, :, 0]
+
+    return np.sum(out, axis=0)
+
+
+def norm(f, axis=0, keepdims=False):
+    """
+    returns euclidean norm of image f of size n,m
     """
     return np.sqrt(np.sum(f**2, axis=axis, keepdims=keepdims))
 
@@ -100,7 +144,7 @@ def psnr(noisy,true):
 
 def dualitygap_denoise(lam,u,divp,f):
     #return 0.5 * lam * np.linalg.norm(u - f)**2 +  np.sum(norm1(grad(u))) + 0.5 * np.linalg.norm(f + (1/lam)*divp)**2 - 0.5 * np.linalg.norm(f)**2
-    return 0.5 * lam * np.linalg.norm(u - f,'fro')**2 + np.sum(norm1(grad(u))) + (1/(2*lam))*np.linalg.norm(divp,'fro')**2 + np.sum(np.multiply(f,divp))
+    return 0.5 * lam * np.linalg.norm(u - f,'fro')**2 + np.sum(norm(grad(u))) + (1/(2*lam))*np.linalg.norm(divp,'fro')**2 + np.sum(np.multiply(f,divp))
 
 def createDownsampled(u,n,blur = False, sigma_blur = 0.5):
     """
@@ -260,12 +304,6 @@ def modified_gram_schmidt_vec(image_array):
         basis_img[i] = basis_img_curr/np.linalg.norm(basis_img_curr)
     return basis_img
 
-def dct2(f,n,type=1, norm='ortho'):
-    #temp = np.pad(f, (n//2,n//2))
-    return dct(dct(f.T, n=2*n,type = type, norm = norm).T, n=2*n, type = type, norm = norm)
-
-def idct2(f,n,type=1, norm='ortho'):
-    return idct(idct(f.T, n=2*n,type = type, norm = norm).T, n=2*n,type = type, norm = norm)
 
 def showFourier(f, log = True):
     if (log):
