@@ -1,0 +1,256 @@
+\documentclass{article}
+
+\usepackage[english]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath,amssymb}
+\usepackage{parskip}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{pgfplots}
+\usepackage{listings}
+\PassOptionsToPackage{pgfplots}{xcolor}
+\setcounter{secnumdepth}{0}
+% Margins
+\usepackage[top=2.5cm, left=3cm, right=3cm, bottom=4.0cm]{geometry}
+% Colour table cells
+
+% Get larger line spacing in table
+\newcommand{\tablespace}{\\[1.25mm]}
+\newcommand\Tstrut{\rule{0pt}{2.6ex}}         % = `top' strut
+\newcommand\tstrut{\rule{0pt}{2.0ex}}         % = `top' strut
+\newcommand\Bstrut{\rule[-0.9ex]{0pt}{0pt}}   % = `bottom' strut
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2
+}
+
+\lstset{style=mystyle}
+
+
+%\DeclareMathOperator{\sinh}{sinh}
+\DeclareMathOperator*{\argmin}{arg\,min}
+\DeclareMathOperator{\lap}{\mathcal{L}}
+\DeclareMathOperator{\F}{\mathcal{F}}
+\DeclareMathOperator{\bb}{\mathbf{b}}
+\DeclareMathOperator{\nn}{\mathbf{n}}
+\DeclareMathOperator{\uu}{\mathbf{u}}
+\DeclareMathOperator{\AD}{\mathbf{AD}}
+\DeclareMathOperator{\SD}{\mathbf{SD}}
+
+
+\newcommand{\mtop}{\text{top}}
+\newcommand{\mbot}{\text{bot}}
+\newcommand{\mleft}{\text{left}}
+\newcommand{\mright}{\text{right}}
+%%%%%%%%%%%%%%%%%
+%     Title     %
+%%%%%%%%%%%%%%%%%
+\title{Notat}
+\author{Martin Ludvigsen}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+%Inverse problem:
+%\begin{equation}
+%    v = Au^\dagger + \sigma w.
+%\end{equation}
+%
+%Total variation:
+%\begin{equation}
+%    S(t)v = \argmin_{u} \frac{t}{2}\|Au - v\|^2 + (1-t)|Du|.
+%\end{equation}
+%Finn optimalt parameter $t \in [0,1]$ :
+%\begin{equation}
+%    t_\mathbf{opt} = \argmin_t \|S(t)v - u^\dagger\|^2.
+%\end{equation}
+%
+%Chambolle-Pock:
+%\begin{align*}
+%    p_{k+1} &= \frac{(1-t)(p_k +\sigma D \hat{u}_k}{\max(1-t, |p_k + \sigma D \hat{u}_k} \\
+%    u_{k+1} &= (I + \tau t A^\ast A)^{-1}(u_k - \tau D^\ast p_{k+1} + \tau t A^\ast v) \\
+%    \hat{u}_k+1 &= u_{k+1} + \theta(u_{k+1} - u_k)
+%\end{align*}
+%
+%Ide: Bruk $S(t)v = u_{k+1}(t)$ i Chambolle-Pock (eller lignende primal-dual metode).
+%Før $u_{k+1}$ regnes ut, velg $t_{k+1}$ med en eller annen parameter-valg metode.
+%For discrepancy principle (Wen \& Chan) betyr dette å løse
+%\begin{equation}
+%    \|(I + \tau t A^\ast A)^{-1}(A(u_k - \tau D^\ast p_{k+1}) - v) \|^2 = \tau n^2 \sigma^2. 
+%\end{equation}
+%Ganske grei ligning å løse med Newton MEN.
+%Virker som løsningen kan ligge utenfor $t \in [0,1]$ hvis discrepancy principle
+%er tilfredsstilt for $u_k$. I disse tilfellene sett $t = 0$.
+%Verken min Chambolle-Pock variant eller primal-dual varianten i Wen \& Chan virker
+%til å kovergere skikkelig. Løsningen oscillerer og er veldig sensitiv til valg av
+%steglengdene $\tau$ og $\sigma$. Trenger "god" primal dual metode som gir $u_{k+1}(t_{k+1})$ som er lett å løse.
+%Ekstrapolering i $t$?
+%
+%\subsection{Del 2}
+%
+%Kan videre formulere parametervalg som et bi-level optimeringsproblem:
+%\begin{align*}
+%    \min_{u, t} &\text{L-curve, GCV, osv...} \\
+%    & \text{s.t} u \in {S(t)v}
+%\end{align*}
+%\begin{align*}
+%    \|Au - v\| &= c^2 \\
+%    u &= (I + \tau t A^\ast A)^{-1}(u - \tau D^\ast p + \tau t A^\ast v) \\
+%    p &= \frac{(1-t)(p +\sigma D u)}{\max(1-t, |p_k + \sigma D u|)}
+%\end{align*}
+%Dette er et "simpelt" bi-level problem, da de kan være voldsomt mye mer komplisert enn dette.
+%Moderne bi-level algoritmer bruker gjerne evolutionary og lignende algoritmer siden det
+%er så vanskelig å få noe ut av selve problemet. Vi kan derimot få en del ut av ligningene.
+%For "min" algoritme kan problemet skrives som
+%\begin{align*}
+%    \argmin_{u,t} &\|u - \hat{u}\|^2 \\
+%    \text{s.t} u &= (I + \tau t A^\ast A)^{-1}(u - \tau D^\ast p + \tau t A^\ast v) \\
+%    p &= \frac{(1-t)(p +\sigma D u)}{\max(1-t, |p_k + \sigma D u|)}
+%\end{align*}
+%Som er et constrained problem med ikke-lineære constraints. Kan dette løses mer effektivt?
+%Kan vi f.eks gjøre om optimeringsproblemet til et problem i $t$?
+%
+%Bruke finite element analyse i primal-dual problemet?
+%I stedenfor å diskretisere $u$ til en vektor, anta
+%\begin{equation}
+%    u_h = \sum_{i = 1}^{N} u^{(i)} \phi^{(i)}.
+%\end{equation}
+%Trenger da en mesh/interpolasjon av $v$ som gir mening, men samtidig får man 
+%"cleanere" måter å utrykke $D$ og $D^\ast$, da diskretiseringen av disse kan ha stor betydning
+%for TV resultatet.
+%Kan man løse ligningen for $u$ med FEA? Konvolusjoner og Fourier-analyse for FEA funksjoner?
+%
+%\subsection{Del 3}
+%
+%Kommer ofte tilbake til dette så her er en liten oversikt:
+%Forskjellige formuleringer av TV regularisering:
+%\begin{align*}
+%    S(\lambda)v = \argmin_u \frac{1}{2}\|Au - v\|_2^2 + \lambda \TV(u) \\
+%    S(\lambda)v = \argmin_u \frac{\lambda}{2}\|Au - v\|_2^2 + \TV(u)
+%    S(t)v = \argmin_u \frac{t}{2}\|Au - v\|_2^2 + (1-t)\TV(u)
+%\end{align*}
+%Vi kan splitte dette til
+%\begin{equation}
+%    Sv = \argmin_u \lambda_f f(u) + \lambda_g g(Du),
+%\end{equation}
+%med $D = \nabla$. I realiteten ønsker vi kun ett parameter, da dette er ekvivalent med å ha to parameter.
+%Her er regulariseringsparameteret bakt inn i enten $f$ eller $g$.
+%Spesielt kan vi merke at convex conjugate til $g(u)$ er
+%\begin{equation}
+%    (\lambda_g g)^\ast(p)= = \sup_u \langle u, p \rangle - \lambda_g \||u|\|_1 = I_C
+%\end{equation}
+%hvor $I_C$ er definert ved
+%\begin{equation}
+%    I_C(p) = 
+%    \begin{cases}
+%       +\infty, \quad p \notin C \\
+%       0, \quad p \in C
+%    \end{cases}
+%\end{equation}
+%med 
+%\begin{equation}
+%    C = \{p : \||p|\|_\infty \le \lambda_g\}.
+%\end{equation}
+%Enkelt å verifisere (i endelig dimensjoner). Om vi har en  $|p_{ij}| > \lambda_g$
+%kan vi velge tilsvarende $u_{ij} \rightarrow \infty$ og det første leddet av supremumet
+%vil alltid være større enn det andre.
+%Dermed kan vi skrive
+%\begin{equation}
+%    \lambda_g \TV(u) = \lambda_g g(Du) = \sup_{\||p\|_\infty \le \lambda_g} \langle p, Du \rangle = \sup_{\||p\|_\infty \le \lambda_g} - \langle D^\ast p, u \rangle.
+%\end{equation}
+%Merk fortegnet her avviker fra Wen \& Chan.
+%
+%Videre har vi
+%\begin{align*}
+%    (\lambda_f f)^\ast(p) &= \sup_u \langle u,p \rangle - \frac{\lambda_f}{2}\|Au - v\|_2^2 \\
+%                          &\implies p - \lambda_f A^\ast(Au - v) = 0 \implies u = \frac{1}{\lambda_f} (A^\ast A)^{-1}(p + v) \\
+%    (\lambda_f f)^\ast(p)&= \langle \frac{1}{\lambda_f} (A^\ast A)^{-1}(p + v), p \rangle - \frac{\lambda_f}{2} \|A(\frac{1}{\lambda_f} (A^\ast A)^{-1}(p + v)) - v\|_2^2 \\
+%\end{align*}
+%This rather nasty expression can be made a lot easier by rewriting:
+%\begin{equation}
+%    (\lambda_f f)^\ast(p) = \sup_{w, w = Au} ....
+%\end{equation}
+%obtain
+%\begin{equation}
+%    ...
+%\end{equation}
+%Kan omskrive dette til sadel-punkt problem:
+%\begin{equation}
+%    Sv = \argmin_u \argmax_{\||p\|_\infty \le \lambda_g} J(u,p) = \argmin_u \argmax_{\||p\|_\infty \le \lambda_g} - \langle D^\ast p,u \rangle + \frac{\lambda_f}{2} \|Au - v\|_2^2.
+%\end{equation}
+%Gitt at $A$ er en OK transformasjon og at $p$ oppfyller betingelsen gir KKT conditions
+%\begin{equation}
+%    - \langle u, D^\ast p \rangle + \lambda_f A^\ast(Au - v) = 0.
+%\end{equation}
+%Dette kan brukes for å teste om man har konvergert til en løsning.
+
+\section{Variance and solutions to inverse problems}
+
+We want so solve inverse problems, which we usually write as
+\begin{equation}
+    v = Au^\dagger + \sigma w,
+\end{equation}
+where $v$ is given, $A: U \rightarrow V$ is a linear operator  and we want to find a reconstruction $u$ similar to $u^\dagger$.
+
+The "goal" of solving inverse problems is essentially to find a new (most likely non-linear) operator $S$ that maps a realization $v$ to a reconstruction $u$ that is "close" to the original $u^hat$.
+In other words, it is a problem of function approximation. Unfortunately, most research seems to be mostly concerned with prediction accuracy for example problems. This is not neccessarily a good measure. We should also need some notion of bias, variance (spread in accuracy) and stability. 
+
+First of all, a definition of accuracy is not easy depending on the problem domain. For most problems, one usually uses some variant of squared error. 
+
+On the most abstract level, we can ask: What is the "variance" (in accuracy)  solution operators over the space of all inverse problems?
+
+We "fix" the solution operator $S(\lambda)$ to be TV regularization with a regularization parameter $\lambda$ selected by some algorithm. 
+Prediction accuracy for a certain $v$ would then be 
+\begin{equation}
+    \text{accuracy} = \|S(\lambda)v - u^\dagger\|^2.
+\end{equation}
+
+Now: Does it make sense to talk about variance (or some notion of it) for a single realization $v$? How about a dataset?
+When talking about variance we need to assume some kind of spread in the moving parts of the inverse problem (essentially some kind of prior):
+\begin{itemize}
+    \item The linear operator $A$. I think it makes the most sense to assume that $A$ is fixed. If not fixed, it might make sense to talk about a range of linear operators $A$ that varies in a few parameters (like the blur of a gaussion convolution).
+    \item The noise level $\sigma$. It might make sense to have a distribution or range for $\sigma$. It is definately interesting to investigate how sensitive the solution operator $S$ is to $\sigma$. It also does not relaly make sense to talk about some distribution in $\sigma$ without also some distribution in $w$ (can't discuss variance wrt $\sigma$ without including the variance wrt $w$.
+    \item The noise realization $w$. This one is perhaps the most interesting in our pursuit of some notion of variance. The reason is that we most likely have some distribution for $w$. A natural question is then: "Given the noise distribution $w$, what is the variance of the solution operator?
+    \item The original data $u^\dagger$. This is probably the most domain-dependant. For images, it might (?) make sense to talk about some prior distribution for $u^\dagger$, or at least characterize some of the properties of the underlying space $U$. On a very abstract level, we could talk about variance wrt the "space of all images", but this is probably so abstract that it is not helpful in practice. 
+\end{itemize}
+For all of these, if one has a dataset, one can attempt to extract some information from this dataset. For example, for a dataset of centered face images, it most likely makes sense to talk about variance with respect to $u^\dagger$. However, this is not really the case if one only has a single realization $v$. However, it is also worth considering the converse: if one has a dataset of images, does it really make sense to talk about the variance over images? Of course it is interesting to see how the accuracy of the solution
+
+First, we can define a variance with respect to the different "moving parts" of an inverse problem:
+\begin{itemize}
+    \item Variance wrt the noise level $\sigma$. Would expect an inverse problem to be more accurate for low $\sigma$ and less accurate for larger $\sigma$. It can make sense to talk about a distribution for $\sigma$, or at least a range of $\sigma$. 
+    \item Variance wrt to noise realization $w$. This is perhaps the most interesting one. The reason that this is the most interesting one is that we often have a good idea of the distribution 
+    \item Variance wrt to the original data $u^\dagger$.
+    \item Variance wrt to the linear operator $A$. This is perhaps the most difficult. In this case it 
+\end{itemize}
+\begin{equation}
+    \text{Different inverse problems} \rightarrow \text{Fixed parameter selection method} \rightarrow \text{Different parameters} \rightarrow \text{Different accuracy}
+\end{equation}
+Cases:
+\begin{itemize}
+    \item Firstly, we have already seen many examples of how different $\lambda$ affects the the prediction error. Here it could be interesting to investigate the variance given some distribution of $\lambda$ (or just uniform distribution of all $\lambda$). Can essentially assume that a parameter selection method will produce $\lambda$ that follow some distribution based on the "moving parts" of the inverse problem.
+    \item Secondly, it is interesting to fix $A$, $u^\dagger$ and $\sigma$ and investigate how different parameter selection methods produce different distributions for $\lambda$ (and accuracy) for different realizations $w$. Might be able to say something analytical about the optimal parameter here?
+    \item Thirdly, we can extend the noise model to something like $w \sim N(0,\sigma^2), \sigma \sim \text{some distribution}$. What distributions for $\sigma$ are logical?
+    \item Fourthly (?), we can investigate how different $u^\dagger$ produce different parameters and accuracy. Probably need to also include varying noise. This is perhaps the most difficult one, because
+
+\end{itemize}
+
+\end{document}

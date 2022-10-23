@@ -1,14 +1,7 @@
-import time
-from scipy import sparse, linalg, signal, misc, ndimage
+import scipy as sp
 from scipy.fftpack import dct, idct
 from scipy.linalg import circulant, toeplitz
-from mpl_toolkits.mplot3d import Axes3D
-import imageio
-import os
-import numpy as np
-import numpy.random
-import matplotlib.pyplot as plt
-import time
+import autograd.numpy as np
 from numpy.fft import fft2, ifft2, fftshift, rfftn, irfftn
 from PIL import Image
 
@@ -45,7 +38,7 @@ def add_gaussian_noise(f, sigma=0.001):
 
     shape = f.shape
     #out = f + sigma* numpy.random.normal(0,1,np.prod(shape)).reshape(shape)
-    out = np.minimum(np.maximum(f + sigma* numpy.random.normal(0,1,np.prod(shape)).reshape(shape), 0.0), 1.0)
+    out = np.minimum(np.maximum(f + sigma* np.random.normal(0,1,np.prod(shape)).reshape(shape), 0.0), 1.0)
     return out
 
 def add_gaussian_blurring(f, ker, sigma):
